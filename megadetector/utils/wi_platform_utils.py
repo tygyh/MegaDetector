@@ -590,10 +590,10 @@ def write_download_commands(image_records,
             done_file = os.path.splitext(os.path.basename(download_command_file))[0] + '.done'
             worker_done_files.append(done_file)
             with open(download_command_file,'w',newline='\r\n') as f:
-                f.write('@echo off\n')
+                f.write('@echo off\r\n')
                 for command in commands_by_script[i_script]:
-                    f.write(command + '\n')
-                f.write('echo. > "{}"\n'.format(done_file))
+                    f.write(command + '\r\n')
+                f.write('echo. > "{}"\r\n'.format(done_file))
         else:
             with open(download_command_file,'w',newline='\n') as f:
                 for command in commands_by_script[i_script]:
