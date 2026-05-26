@@ -447,11 +447,12 @@ def write_download_commands(image_records,
                             force_download=False,
                             n_download_workers=25,
                             download_command_file_base=None,
-                            image_flattening='deployment'):
+                            image_flattening='deployment',
+                            use_bat=False):
     """
     Given a list of dicts with at least the field 'location' (a gs:// URL), prepare a set of "gcloud
-    storage" commands to download images, and write those to a series of .sh scripts, along with one
-    .sh script that runs all the others and blocks.
+    storage" commands to download images, and write those to a series of .sh scripts (or .bat scripts
+    on Windows), along with one script that runs all the others and blocks.
 
     gcloud commands will use relative paths.
 
@@ -462,12 +463,18 @@ def write_download_commands(image_records,
         force_download (bool, optional): include gs commands even if the target file exists
         n_download_workers (int, optional): number of scripts to write (that's our hacky way
             of controlling parallelization)
-        download_command_file_base (str, optional): path of the .sh script we should write, defaults
-            to "download_wi_images.sh" in the destination folder.  Individual worker scripts will
-            have a number added, e.g. download_wi_images_00.sh.
+        download_command_file_base (str, optional): path of the main script we should write,
+            defaults to "download_wi_images.sh" (or "download_wi_images.bat" when use_bat=True)
+            in the destination folder.  Individual worker scripts will have a number added,
+            e.g. download_wi_images.00.sh (or download_wi_images.00.bat).  If provided without
+            an extension, ".sh"/".bat" is added based on use_bat; if an extension is provided,
+            it must already match use_bat.
         image_flattening (str, optional): if 'none', relative paths will be preserved
             representing the entire URL for each image.  Can be 'guid' (just download to
             [GUID].JPG) or 'deployment' (download to [deployment]/[GUID].JPG).
+        use_bat (bool, optional): if True, write Windows .bat scripts instead of bash .sh
+            scripts.  Worker scripts are launched in parallel via "start /B" and the main
+            script blocks until all workers finish.
     """
 
     ##%% Input validation
@@ -520,9 +527,6 @@ def write_download_commands(image_records,
 
     ##%% Make list of gcloud storage commands
 
-    if download_command_file_base is None:
-        download_command_file_base = path_join(download_dir_base,'download_wi_images.sh')
-
     commands = []
     skipped_urls = []
     downloaded_urls = set()
@@ -554,14 +558,27 @@ def write_download_commands(image_records,
     print('Skipped {} URLs'.format(len(skipped_urls)))
 
 
-    ##%% Write those commands out to n .sh files
+    ##%% Write those commands out to n .sh/.bat files
 
     commands_by_script = split_list_into_n_chunks(commands,n_download_workers)
 
+    script_ext = '.bat' if use_bat else '.sh'
+    if download_command_file_base is None:
+        download_command_file_base = path_join(download_dir_base,'download_wi_images' + script_ext)
+    else:
+        _,provided_ext = os.path.splitext(download_command_file_base)
+        if len(provided_ext) == 0:
+            download_command_file_base = download_command_file_base + script_ext
+        elif provided_ext.lower() != script_ext:
+            raise ValueError('download_command_file_base extension must match use_bat (expected {})'.format(
+                script_ext))
+
     local_download_commands = []
+    worker_done_files = []
 
     output_dir = os.path.dirname(download_command_file_base)
-    os.makedirs(output_dir,exist_ok=True)
+    if len(output_dir) > 0:
+        os.makedirs(output_dir,exist_ok=True)
 
     # Write out the download script for each chunk
     # i_script = 0
@@ -570,18 +587,43 @@ def write_download_commands(image_records,
             continue
         download_command_file = insert_before_extension(download_command_file_base,str(i_script).zfill(2))
         local_download_commands.append(os.path.basename(download_command_file))
-        with open(download_command_file,'w',newline='\n') as f:
-            for command in commands_by_script[i_script]:
-                f.write(command + '\n')
-        make_executable(download_command_file,catch_exceptions=True)
+        if use_bat:
+            done_file = os.path.splitext(os.path.basename(download_command_file))[0] + '.done'
+            worker_done_files.append(done_file)
+            with open(download_command_file,'w',newline='') as f:
+                f.write('@echo off\r\n')
+                for command in commands_by_script[i_script]:
+                    f.write(command + '\r\n')
+                f.write('echo. > "{}"\r\n'.format(done_file))
+        else:
+            with open(download_command_file,'w',newline='\n') as f:
+                for command in commands_by_script[i_script]:
+                    f.write(command + '\n')
+            make_executable(download_command_file,catch_exceptions=True)
 
     # Write out the main download script
-    with open(download_command_file_base,'w',newline='\n') as f:
-        for local_download_command in local_download_commands:
-            f.write('./' + local_download_command + ' &\n')
-        f.write('wait\n')
-        f.write('echo done\n')
-    make_executable(download_command_file_base,catch_exceptions=True)
+    if use_bat:
+        with open(download_command_file_base,'w',newline='') as f:
+            f.write('@echo off\r\n')
+            f.write('cd /d "%~dp0"\r\n')
+            for done_file in worker_done_files:
+                f.write('if exist "{}" del /q "{}" > nul 2>&1\r\n'.format(done_file,done_file))
+            for local_download_command in local_download_commands:
+                f.write('start "" /B cmd /c "{}"\r\n'.format(local_download_command))
+            if worker_done_files:
+                f.write(':wait_loop\r\n')
+                f.write('timeout /t 5 /nobreak > nul\r\n')
+                for done_file in worker_done_files:
+                    f.write('if not exist "{}" goto wait_loop\r\n'.format(done_file))
+                f.write('del {}\r\n'.format(' '.join('"{}"'.format(d) for d in worker_done_files)))
+            f.write('echo done\r\n')
+    else:
+        with open(download_command_file_base,'w',newline='\n') as f:
+            for local_download_command in local_download_commands:
+                f.write('./' + local_download_command + ' &\n')
+            f.write('wait\n')
+            f.write('echo done\n')
+        make_executable(download_command_file_base,catch_exceptions=True)
 
 # ...def write_download_commands(...)
 
@@ -1103,4 +1145,3 @@ def record_lists_are_identical(records_0,records_1,verbose=False):
 blank_payload = generate_blank_prediction_payload('70ede9c6-d056-4dd1-9a0b-3098d8113e0e','1234')
 validate_payload(sample_update_payload)
 validate_payload(blank_payload)
-
