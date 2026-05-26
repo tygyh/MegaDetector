@@ -560,9 +560,12 @@ def write_download_commands(image_records,
 
     commands_by_script = split_list_into_n_chunks(commands,n_download_workers)
 
+    script_ext = '.bat' if use_bat else '.sh'
     if download_command_file_base is None:
-        script_ext = '.bat' if use_bat else '.sh'
         download_command_file_base = path_join(download_dir_base,'download_wi_images' + script_ext)
+    else:
+        download_command_file_base_root = os.path.splitext(download_command_file_base)[0]
+        download_command_file_base = download_command_file_base_root + script_ext
 
     local_download_commands = []
     worker_done_files = []
