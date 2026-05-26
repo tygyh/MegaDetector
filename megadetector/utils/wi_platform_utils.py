@@ -590,7 +590,7 @@ def write_download_commands(image_records,
         if use_bat:
             done_file = os.path.splitext(os.path.basename(download_command_file))[0] + '.done'
             worker_done_files.append(done_file)
-            with open(download_command_file,'w',newline='\r\n') as f:
+            with open(download_command_file,'w',newline='') as f:
                 f.write('@echo off\r\n')
                 for command in commands_by_script[i_script]:
                     f.write(command + '\r\n')
@@ -603,7 +603,7 @@ def write_download_commands(image_records,
 
     # Write out the main download script
     if use_bat:
-        with open(download_command_file_base,'w',newline='\r\n') as f:
+        with open(download_command_file_base,'w',newline='') as f:
             f.write('@echo off\r\n')
             f.write('cd /d "%~dp0"\r\n')
             for done_file in worker_done_files:
