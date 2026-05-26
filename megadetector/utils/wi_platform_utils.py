@@ -619,7 +619,6 @@ def write_download_commands(image_records,
             f.write('echo done\r\n')
     else:
         with open(download_command_file_base,'w',newline='\n') as f:
-            f.write('cd "$(dirname "$0")"\n')
             for local_download_command in local_download_commands:
                 f.write('./' + local_download_command + ' &\n')
             f.write('wait\n')
