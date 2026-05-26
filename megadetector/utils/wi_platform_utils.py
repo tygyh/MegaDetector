@@ -466,7 +466,7 @@ def write_download_commands(image_records,
         download_command_file_base (str, optional): path of the main script we should write,
             defaults to "download_wi_images.sh" (or "download_wi_images.bat" when use_bat=True)
             in the destination folder.  Individual worker scripts will have a number added,
-            e.g. download_wi_images_00.sh (or download_wi_images_00.bat).
+            e.g. download_wi_images.00.sh (or download_wi_images.00.bat).
         image_flattening (str, optional): if 'none', relative paths will be preserved
             representing the entire URL for each image.  Can be 'guid' (just download to
             [GUID].JPG) or 'deployment' (download to [deployment]/[GUID].JPG).
