@@ -466,7 +466,9 @@ def write_download_commands(image_records,
         download_command_file_base (str, optional): path of the main script we should write,
             defaults to "download_wi_images.sh" (or "download_wi_images.bat" when use_bat=True)
             in the destination folder.  Individual worker scripts will have a number added,
-            e.g. download_wi_images.00.sh (or download_wi_images.00.bat).
+            e.g. download_wi_images.00.sh (or download_wi_images.00.bat).  If provided without
+            an extension, ".sh"/".bat" is added based on use_bat; if an extension is provided,
+            it must already match use_bat.
         image_flattening (str, optional): if 'none', relative paths will be preserved
             representing the entire URL for each image.  Can be 'guid' (just download to
             [GUID].JPG) or 'deployment' (download to [deployment]/[GUID].JPG).
@@ -564,8 +566,12 @@ def write_download_commands(image_records,
     if download_command_file_base is None:
         download_command_file_base = path_join(download_dir_base,'download_wi_images' + script_ext)
     else:
-        download_command_file_base_root = os.path.splitext(download_command_file_base)[0]
-        download_command_file_base = download_command_file_base_root + script_ext
+        _,provided_ext = os.path.splitext(download_command_file_base)
+        if len(provided_ext) == 0:
+            download_command_file_base = download_command_file_base + script_ext
+        elif provided_ext.lower() != script_ext:
+            raise ValueError('download_command_file_base extension must match use_bat (expected {})'.format(
+                script_ext))
 
     local_download_commands = []
     worker_done_files = []
