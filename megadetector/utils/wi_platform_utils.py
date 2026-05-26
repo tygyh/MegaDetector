@@ -598,6 +598,7 @@ def write_download_commands(image_records,
     if use_bat:
         with open(download_command_file_base,'w',newline='\r\n') as f:
             f.write('@echo off\n')
+            f.write('cd /d "%~dp0"\n')
             for local_download_command in local_download_commands:
                 f.write('start "" /B cmd /c "{}"\n'.format(local_download_command))
             if worker_done_files:
@@ -1135,4 +1136,3 @@ def record_lists_are_identical(records_0,records_1,verbose=False):
 blank_payload = generate_blank_prediction_payload('70ede9c6-d056-4dd1-9a0b-3098d8113e0e','1234')
 validate_payload(sample_update_payload)
 validate_payload(blank_payload)
-
