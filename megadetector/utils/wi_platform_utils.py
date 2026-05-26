@@ -599,6 +599,8 @@ def write_download_commands(image_records,
         with open(download_command_file_base,'w',newline='\r\n') as f:
             f.write('@echo off\n')
             f.write('cd /d "%~dp0"\n')
+            for done_file in worker_done_files:
+                f.write('if exist "{}" del /q "{}" > nul 2>&1\n'.format(done_file,done_file))
             for local_download_command in local_download_commands:
                 f.write('start "" /B cmd /c "{}"\n'.format(local_download_command))
             if worker_done_files:
