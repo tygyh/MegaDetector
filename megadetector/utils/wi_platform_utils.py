@@ -577,7 +577,8 @@ def write_download_commands(image_records,
     worker_done_files = []
 
     output_dir = os.path.dirname(download_command_file_base)
-    os.makedirs(output_dir,exist_ok=True)
+    if len(output_dir) > 0:
+        os.makedirs(output_dir,exist_ok=True)
 
     # Write out the download script for each chunk
     # i_script = 0
@@ -603,19 +604,19 @@ def write_download_commands(image_records,
     # Write out the main download script
     if use_bat:
         with open(download_command_file_base,'w',newline='\r\n') as f:
-            f.write('@echo off\n')
-            f.write('cd /d "%~dp0"\n')
+            f.write('@echo off\r\n')
+            f.write('cd /d "%~dp0"\r\n')
             for done_file in worker_done_files:
-                f.write('if exist "{}" del /q "{}" > nul 2>&1\n'.format(done_file,done_file))
+                f.write('if exist "{}" del /q "{}" > nul 2>&1\r\n'.format(done_file,done_file))
             for local_download_command in local_download_commands:
-                f.write('start "" /B cmd /c "{}"\n'.format(local_download_command))
+                f.write('start "" /B cmd /c "{}"\r\n'.format(local_download_command))
             if worker_done_files:
-                f.write(':wait_loop\n')
-                f.write('timeout /t 5 /nobreak > nul\n')
+                f.write(':wait_loop\r\n')
+                f.write('timeout /t 5 /nobreak > nul\r\n')
                 for done_file in worker_done_files:
-                    f.write('if not exist "{}" goto wait_loop\n'.format(done_file))
-                f.write('del {}\n'.format(' '.join('"{}"'.format(d) for d in worker_done_files)))
-            f.write('echo done\n')
+                    f.write('if not exist "{}" goto wait_loop\r\n'.format(done_file))
+                f.write('del {}\r\n'.format(' '.join('"{}"'.format(d) for d in worker_done_files)))
+            f.write('echo done\r\n')
     else:
         with open(download_command_file_base,'w',newline='\n') as f:
             for local_download_command in local_download_commands:
