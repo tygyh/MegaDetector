@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:1.14.0-gpu-py3
+FROM tensorflow/tensorflow:1.15.5-gpu-py3
 # Python version is 3.6.8
 
 RUN pip install --upgrade pip
